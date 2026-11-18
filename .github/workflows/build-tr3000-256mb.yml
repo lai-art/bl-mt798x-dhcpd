@@ -1,0 +1,55 @@
+name: Build TR3000 256MB U-Boot
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ master, build-tr3000-256mb ]
+    paths:
+      - 'uboot-mtk-20250711/configs/mt7981_cudy_tr3000-v1-256mb_defconfig'
+      - 'uboot-mtk-20250711/arch/arm/dts/mt7981-cudy-tr3000-v1-256mb.dts'
+      - 'atf-20240117-bacca82a8/configs/mt7981_cudy_tr3000-v1-256mb_defconfig'
+      - '.github/workflows/build-tr3000-256mb.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    env:
+      TZ: Asia/Shanghai
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y $(cat depends/ubuntu-22.04) rename tar
+          sudo timedatectl set-timezone "$TZ"
+
+      - name: Build TR3000 256MB FIP + BL2
+        run: |
+          set -euo pipefail
+          make BOARD=cudy_tr3000-v1-256mb VERSION=SP1 VARIANT=default \
+               MULTI_LAYOUT=0 FIXED_MTDPARTS=1
+
+      - name: Verify output
+        run: |
+          ls -lh output/
+          echo "=== MD5 ==="
+          md5sum output/*
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: tr3000-256mb-uboot
+          path: output/*
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: tr3000-256mb-${{ github.run_number }}
+          name: TR3000 256MB U-Boot (SP1 / DHCPD)
+          files: output/*
+          generate_release_notes: true
