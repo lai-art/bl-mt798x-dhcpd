@@ -1,0 +1,48 @@
+name: Build TR3000 256MB U-Boot (reference commit)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ build-tr3000-256mb-ref ]
+    paths:
+      - '.github/workflows/build-tr3000-256mb-ref.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y $(cat depends/ubuntu-22.04) rename tar
+
+      - name: Build TR3000 256MB FIP + BL2 (VERSION=2025, commit d730be33b)
+        run: |
+          set -euo pipefail
+          BOARD=cudy_tr3000-v1-256mb VERSION=2025 VARIANT=default \
+          FIXED_MTDPARTS=1 MULTI_LAYOUT=0 ./build.sh
+
+      - name: Verify output
+        run: |
+          ls -lh output/
+          md5sum output/*
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: tr3000-256mb-ref-artifacts
+          path: output/*
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: tr3000-256mb-ref-${{ github.run_number }}
+          name: TR3000 256MB U-Boot (reference d730be33b)
+          files: output/*
+          generate_release_notes: true
